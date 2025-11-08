@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Pengawas</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- STATE 1: LOGIN SCREEN -->
+        <section id="loginSection">
+            <div class="login-card">
+                <h2>Login Pengawas</h2>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="usernameInput" placeholder="Nama Lengkap">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="passwordInput" placeholder="Kode Akses">
+                </div>
+                <button onclick="doLogin()" id="loginBtn">Masuk</button>
+                <p id="loginError" class="error-text"></p>
+            </div>
+        </section>
+
+        <!-- STATE 2: DASHBOARD (Initially Hidden) -->
+        <section id="dashboardSection" style="display: none;">
+            <header>
+                <div class="user-info">
+                    Hai, <span id="pengawasName">User</span>
+                </div>
+                <button onclick="doLogout()" class="logout-btn">Keluar</button>
+            </header>
+            
+            <main>
+                <div class="search-bar">
+                     <input type="text" id="searchInput" placeholder="Cari nama peserta..." onkeyup="filterPeserta()">
+                </div>
+
+                <div id="loadingData">Memuat data peserta...</div>
+                <ul id="pesertaList" class="peserta-list">
+                    <!-- Item Peserta will go here -->
+                </ul>
+            </main>
+        </section>
+    </div>
+
+    <!-- MODAL FOR INPUT SCORE -->
+    <div id="scoreModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Input Nilai: <span id="modalPesertaName"></span></h3>
+            <input type="number" id="scoreInput" placeholder="0-100">
+            <div class="modal-actions">
+                <button onclick="closeModal()" class="cancel-btn">Batal</button>
+                <button onclick="submitScore()" class="save-btn">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
