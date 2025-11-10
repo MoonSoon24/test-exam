@@ -1,10 +1,12 @@
+// --- KONFIGURASI ---
+// Gunakan URL relatif jika di-host di Vercel bersama proxy
 const API_URL = "/api/proxy"; 
 
 let currentUser = null;
 let allPeserta = [];
-let currentPeserta = null; // Menyimpan objek peserta yang sedang dipilih
+let currentPeserta = null;
 
-// --- AUTH ---
+// --- AUTH (Tidak Berubah) ---
 async function doLogin() {
     const user = document.getElementById('usernameInput').value;
     const pass = document.getElementById('passwordInput').value;
@@ -12,29 +14,27 @@ async function doLogin() {
     const err = document.getElementById('loginError');
 
     if (!user || !pass) { err.textContent = 'Isi semua kolom!'; return; }
-
     btn.textContent = 'Memverifikasi...'; btn.disabled = true; err.textContent = '';
 
     try {
         const res = await fetch(`${API_URL}?action=login&username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`);
         const data = await res.json();
-
         if (data.success) {
             currentUser = data.name;
             sessionStorage.setItem('pengawas', currentUser);
             showDashboard();
         } else {
-            err.textContent = data.error || 'Login gagal, periksa username/password.';
+            err.textContent = data.error || 'Login gagal.';
         }
     } catch (e) {
-        err.textContent = 'Gagal terhubung ke server. Periksa internet Anda.';
+        err.textContent = 'Gagal terhubung ke server.';
     } finally {
         btn.textContent = 'Masuk'; btn.disabled = false;
     }
 }
 
 function doLogout() {
-    if (confirm('Anda yakin ingin keluar?')) {
+    if (confirm('Keluar dari aplikasi?')) {
         sessionStorage.removeItem('pengawas');
         window.location.reload();
     }
@@ -64,7 +64,7 @@ async function loadPeserta() {
             alert('Gagal memuat data: ' + (data.error || 'Unknown error'));
         }
     } catch (e) {
-        document.getElementById('pesertaList').innerHTML = '<p style="text-align:center; color:red; margin-top:20px;">Gagal memuat data. Coba refresh halaman.</p>';
+        document.getElementById('pesertaList').innerHTML = '<p style="text-align:center; color:red; margin-top:20px;">Gagal memuat data. Coba refresh.</p>';
     } finally {
         loadingEl.style.display = 'none';
     }
@@ -80,29 +80,31 @@ function renderPeserta(list) {
     }
 
     list.forEach(p => {
-        // Mapping data sesuai header baru
+        // --- MAPPING DATA SESUAI HEADER BARU ANDA ---
+        // Header: NO PESERTA, NAMA LENGKAP, JURUSAN, UNIVERSITAS, Score, STATUS (opsional)
         const no = p['NO PESERTA'] || '-';
         const nama = p['NAMA LENGKAP'] || 'Tanpa Nama';
         const jurusan = p['JURUSAN'] || '-';
-        const status = p['STATUS'];
-        // Cek 'SCORE' dulu, kalau kosong coba cek 'NILAI' (untuk backward compatibility)
-        const score = p['SCORE'] || p['NILAI']; 
+        const universitas = p['UNIVERSITAS'] || '-';
         
-        const isDone = status === 'Sudah Dinilai';
+        // Cek nilai dari berbagai kemungkinan nama kolom
+        const scoreValue = p['Score'] || p['SCORE'] || p['NILAI']; 
+        // Tentukan status: jika ada nilai, anggap sudah dinilai
+        const isDone = (scoreValue !== undefined && scoreValue !== null && scoreValue.toString().trim() !== '');
 
         const li = document.createElement('li');
         li.className = 'peserta-item';
-        // Saat baris diklik, buka modal detail
         li.onclick = () => openScoreModal(no);
 
         li.innerHTML = `
             <div class="peserta-info">
                 <h4>${nama}</h4>
                 <p>#${no} • ${jurusan}</p>
+                <p style="font-size:0.8em; color:#94a3b8;">${universitas}</p>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 ${isDone 
-                    ? `<span class="status-badge status-sudah">Score: ${score}</span>` 
+                    ? `<span class="status-badge status-sudah">Score: ${scoreValue}</span>` 
                     : `<span class="status-badge status-belum">Belum Dinilai</span>`
                 }
                 <span class="arrow-icon">&rsaquo;</span>
@@ -123,36 +125,30 @@ function filterPeserta() {
 }
 
 // --- MODAL FLOW ---
-
-// 1. Buka Modal Input Skor
 function openScoreModal(noPeserta) {
     currentPeserta = allPeserta.find(p => String(p['NO PESERTA']) === String(noPeserta));
     if (!currentPeserta) return;
 
-    // Populate detail peserta di modal pertama
     document.getElementById('detailNama').textContent = currentPeserta['NAMA LENGKAP'];
     document.getElementById('detailNo').textContent = currentPeserta['NO PESERTA'];
-    // Gunakan kolom baru Anda jika ada, atau fallback ke '-'
     document.getElementById('detailJurusan').textContent = currentPeserta['JURUSAN'] || '-';
     document.getElementById('detailUniversitas').textContent = currentPeserta['UNIVERSITAS'] || '-';
 
-    // Reset form dengan data yang sudah ada (jika edit)
-    const existingScore = currentPeserta['SCORE'] || currentPeserta['NILAI'];
-    const existingNotes = currentPeserta['CATATAN TAMBAHAN'];
+    // Ambil data lama jika ada untuk mode edit
+    const existingScore = currentPeserta['Score'] || currentPeserta['SCORE'] || currentPeserta['NILAI'];
+    // Coba berbagai kemungkinan nama kolom catatan
+    const existingNotes = currentPeserta['Catatan Tambahan'] || currentPeserta['CATATAN TAMBAHAN'] || currentPeserta['Catatan'] || '';
 
     document.getElementById('scoreInput').value = existingScore || '';
     document.getElementById('notesInput').value = existingNotes || '';
     
-    // Tampilkan modal skor
     document.getElementById('scoreModal').style.display = 'flex';
 }
 
-// 2. Buka Modal Konfirmasi (Validasi dulu)
 function openConfirmModal() {
     const score = document.getElementById('scoreInput').value;
     const notes = document.getElementById('notesInput').value;
 
-    // Validasi Input
     if (score === '') {
         alert("Harap isi nilai terlebih dahulu.");
         document.getElementById('scoreInput').focus();
@@ -160,12 +156,10 @@ function openConfirmModal() {
     }
     const scoreNum = parseFloat(score);
     if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) {
-        alert("Nilai harus berupa angka antara 0 sampai 100.");
-        document.getElementById('scoreInput').focus();
+        alert("Nilai harus angka 0 - 100.");
         return;
     }
 
-    // Populate data ke modal konfirmasi
     document.getElementById('confirmName').textContent = currentPeserta['NAMA LENGKAP'];
     document.getElementById('confirmScore').textContent = scoreNum;
     
@@ -177,13 +171,10 @@ function openConfirmModal() {
         notesRow.style.display = 'none';
     }
 
-    // Tampilkan modal konfirmasi (tumpuk di atas modal skor)
     document.getElementById('confirmModal').style.display = 'flex';
 }
 
-// 3. Tutup Modal
 function closeAllModals() {
-    // Tutup semua dengan animasi fade-out sederhana (opsional bisa ditambah class)
     document.getElementById('scoreModal').style.display = 'none';
     document.getElementById('confirmModal').style.display = 'none';
 }
@@ -192,24 +183,18 @@ function closeConfirmModal() {
     document.getElementById('confirmModal').style.display = 'none';
 }
 
-// 4. Submit Final
 async function submitScoreFinal() {
     if (!currentPeserta) return;
 
     const score = document.getElementById('scoreInput').value;
     const notes = document.getElementById('notesInput').value;
-    
     const btnSave = document.getElementById('finalSubmitBtn');
     const btnCancel = document.getElementById('cancelConfirmBtn');
     const originalText = btnSave.innerHTML;
 
-    // State loading di tombol
-    btnSave.innerHTML = '<i class="ri-loader-4-line spin"></i> Menyimpan...';
-    btnSave.disabled = true;
-    btnCancel.disabled = true;
+    btnSave.innerHTML = 'Menyimpan...'; btnSave.disabled = true; btnCancel.disabled = true;
 
     try {
-        // Kirim data lengkap
         const url = `${API_URL}?action=submitScore` +
                     `&id=${encodeURIComponent(currentPeserta['NO PESERTA'])}` +
                     `&nilai=${encodeURIComponent(score)}` +
@@ -220,39 +205,32 @@ async function submitScoreFinal() {
         const data = await res.json();
 
         if (data.success) {
-            // Update data lokal agar UI langsung berubah tanpa reload
-            currentPeserta['STATUS'] = 'Sudah Dinilai';
-            currentPeserta['SCORE'] = score; // Pastikan key ini sesuai dengan yang dipakai di renderPeserta
-            currentPeserta['NILAI'] = score; // Jaga-jaga jika masih pakai key lama
-            currentPeserta['CATATAN TAMBAHAN'] = notes;
+            // Update data lokal untuk refleksi instan di UI
+            // Gunakan nama kolom yang sama dengan yang dipakai di renderPeserta
+            currentPeserta['Score'] = score; 
+            currentPeserta['SCORE'] = score; // Jaga-jaga
+            currentPeserta['Catatan Tambahan'] = notes;
+            currentPeserta['STATUS'] = 'Sudah Dinilai'; // Optional untuk lokal flag
 
             closeAllModals();
-            renderPeserta(allPeserta); // Refresh tampilan list
-            filterPeserta(); // Re-apply filter pencarian
-            
-            // Opsional: Feedback getar di HP (jika didukung browser)
-            if (navigator.vibrate) navigator.vibrate(50);
-
+            renderPeserta(allPeserta);
+            filterPeserta();
         } else {
-            throw new Error(data.error || 'Gagal menyimpan data di server.');
+            throw new Error(data.error || 'Gagal menyimpan.');
         }
     } catch (e) {
         alert('Terjadi kesalahan: ' + e.message);
-        closeConfirmModal(); // Tutup konfirmasi saja agar bisa coba lagi
+        closeConfirmModal();
     } finally {
-        // Reset tombol
-        btnSave.innerHTML = originalText;
-        btnSave.disabled = false;
-        btnCancel.disabled = false;
+        btnSave.innerHTML = originalText; btnSave.disabled = false; btnCancel.disabled = false;
     }
 }
 
-// Cek sesi saat load
+// Session check
 if (sessionStorage.getItem('pengawas')) {
     currentUser = sessionStorage.getItem('pengawas');
     showDashboard();
 } else {
-    // Pastikan login section terlihat jika belum login
     document.getElementById('loginSection').style.display = 'flex';
     document.getElementById('dashboardSection').style.display = 'none';
 }
