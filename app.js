@@ -210,7 +210,7 @@ function openScoreModal(noPeserta) {
     // Ambil data lama jika ada
     const existingScore = currentPeserta['Score'] || currentPeserta['SCORE'] || currentPeserta['NILAI'];
     const existingNotes = currentPeserta['Catatan Tambahan'] || currentPeserta['CATATAN TAMBAHAN'] || currentPeserta['Catatan'] || '';
-    const existingAssessor = currentPeserta['Penguji'] || currentPeserta['Pewawancara'] || '';
+    const existingAssessor = currentPeserta['Penilai'] || currentPeserta['Pewawancara'] || '';
 
     // Tentukan status: jika ada nilai, anggap sudah dinilai
     const isDone = (existingScore !== undefined && existingScore !== null && existingScore.toString().trim() !== '');
@@ -305,7 +305,7 @@ async function submitScoreFinal() {
                     `&id=${encodeURIComponent(currentPeserta['NO PESERTA'])}` +
                     `&nilai=${encodeURIComponent(score)}` +
                     `&catatan=${encodeURIComponent(notes)}` +
-                    `&pewawancara=${encodeURIComponent(currentUser)}`;
+                    `&penilai=${encodeURIComponent(currentUser)}`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -316,8 +316,8 @@ async function submitScoreFinal() {
             currentPeserta['SCORE'] = score;
             currentPeserta['Catatan Tambahan'] = notes;
             currentPeserta['CATATAN TAMBAHAN'] = notes;
+            currentPeserta['Penilai'] = currentUser;
             currentPeserta['Pewawancara'] = currentUser;
-            currentPeserta['PEWAWANCARA'] = currentUser;
 
             closeAllModals();
             // Render ulang dengan tetap mempertahankan filter & sorting saat ini
