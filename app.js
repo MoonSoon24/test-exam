@@ -129,41 +129,61 @@ function openScoreModal(noPeserta) {
     currentPeserta = allPeserta.find(p => String(p['NO PESERTA']) === String(noPeserta));
     if (!currentPeserta) return;
 
-    // Isi detail peserta di modal
+    // Populate detail peserta di modal pertama
     document.getElementById('detailNama').textContent = currentPeserta['NAMA LENGKAP'];
     document.getElementById('detailNo').textContent = currentPeserta['NO PESERTA'];
-    document.getElementById('detailJurusan').textContent = `${currentPeserta['JURUSAN']} - ${currentPeserta['UNIVERSITAS']}`;
+    // Gunakan kolom baru Anda jika ada, atau fallback ke '-'
+    document.getElementById('detailJurusan').textContent = currentPeserta['JURUSAN'] || '-';
+    document.getElementById('detailUniversitas').textContent = currentPeserta['UNIVERSITAS'] || '-';
 
-    // Reset form input
+    // Reset form dengan data yang sudah ada (jika edit)
     const existingScore = currentPeserta['SCORE'] || currentPeserta['NILAI'];
     const existingNotes = currentPeserta['CATATAN TAMBAHAN'];
 
     document.getElementById('scoreInput').value = existingScore || '';
     document.getElementById('notesInput').value = existingNotes || '';
     
-    // Tampilkan modal
+    // Tampilkan modal skor
     document.getElementById('scoreModal').style.display = 'flex';
 }
 
-// 2. Buka Modal Konfirmasi
+// 2. Buka Modal Konfirmasi (Validasi dulu)
 function openConfirmModal() {
     const score = document.getElementById('scoreInput').value;
-    if (!score) {
-        alert("Mohon isi nilai terlebih dahulu.");
+    const notes = document.getElementById('notesInput').value;
+
+    // Validasi Input
+    if (score === '') {
+        alert("Harap isi nilai terlebih dahulu.");
+        document.getElementById('scoreInput').focus();
         return;
     }
-    if (score < 0 || score > 100) {
-        alert("Nilai harus antara 0 - 100.");
+    const scoreNum = parseFloat(score);
+    if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 100) {
+        alert("Nilai harus berupa angka antara 0 sampai 100.");
+        document.getElementById('scoreInput').focus();
         return;
     }
 
-    // Tampilkan ringkasan di modal konfirmasi
-    document.getElementById('confirmScore').textContent = score;
+    // Populate data ke modal konfirmasi
+    document.getElementById('confirmName').textContent = currentPeserta['NAMA LENGKAP'];
+    document.getElementById('confirmScore').textContent = scoreNum;
+    
+    const notesRow = document.getElementById('confirmNotesRow');
+    if (notes && notes.trim().length > 0) {
+        document.getElementById('confirmNotes').textContent = notes;
+        notesRow.style.display = 'flex';
+    } else {
+        notesRow.style.display = 'none';
+    }
+
+    // Tampilkan modal konfirmasi (tumpuk di atas modal skor)
     document.getElementById('confirmModal').style.display = 'flex';
 }
 
 // 3. Tutup Modal
 function closeAllModals() {
+    // Tutup semua dengan animasi fade-out sederhana (opsional bisa ditambah class)
     document.getElementById('scoreModal').style.display = 'none';
     document.getElementById('confirmModal').style.display = 'none';
 }
@@ -172,19 +192,24 @@ function closeConfirmModal() {
     document.getElementById('confirmModal').style.display = 'none';
 }
 
-// 4. Submit Final ke Server
+// 4. Submit Final
 async function submitScoreFinal() {
     if (!currentPeserta) return;
 
     const score = document.getElementById('scoreInput').value;
     const notes = document.getElementById('notesInput').value;
-    const btn = document.getElementById('finalSubmitBtn');
     
-    const originalBtnText = btn.textContent;
-    btn.textContent = 'Menyimpan...'; btn.disabled = true;
+    const btnSave = document.getElementById('finalSubmitBtn');
+    const btnCancel = document.getElementById('cancelConfirmBtn');
+    const originalText = btnSave.innerHTML;
+
+    // State loading di tombol
+    btnSave.innerHTML = '<i class="ri-loader-4-line spin"></i> Menyimpan...';
+    btnSave.disabled = true;
+    btnCancel.disabled = true;
 
     try {
-        // Kirim data lengkap ke proxy -> GAS
+        // Kirim data lengkap
         const url = `${API_URL}?action=submitScore` +
                     `&id=${encodeURIComponent(currentPeserta['NO PESERTA'])}` +
                     `&nilai=${encodeURIComponent(score)}` +
@@ -195,26 +220,30 @@ async function submitScoreFinal() {
         const data = await res.json();
 
         if (data.success) {
-            // Update data lokal instan
+            // Update data lokal agar UI langsung berubah tanpa reload
             currentPeserta['STATUS'] = 'Sudah Dinilai';
-            currentPeserta['SCORE'] = score; // Update nilai lokal
+            currentPeserta['SCORE'] = score; // Pastikan key ini sesuai dengan yang dipakai di renderPeserta
+            currentPeserta['NILAI'] = score; // Jaga-jaga jika masih pakai key lama
             currentPeserta['CATATAN TAMBAHAN'] = notes;
 
             closeAllModals();
-            renderPeserta(allPeserta); // Refresh list UI
-            filterPeserta(); // Re-apply filter jika ada
+            renderPeserta(allPeserta); // Refresh tampilan list
+            filterPeserta(); // Re-apply filter pencarian
+            
+            // Opsional: Feedback getar di HP (jika didukung browser)
+            if (navigator.vibrate) navigator.vibrate(50);
 
-            // Opsional: Tampilkan notifikasi sukses kecil (toast)
-            // alert('Data berhasil disimpan!'); 
         } else {
-            alert('Gagal menyimpan: ' + data.error);
-            closeConfirmModal(); // Tutup konfirmasi saja agar bisa edit lagi
+            throw new Error(data.error || 'Gagal menyimpan data di server.');
         }
     } catch (e) {
-        alert('Error koneksi saat menyimpan. Coba lagi.');
-        closeConfirmModal();
+        alert('Terjadi kesalahan: ' + e.message);
+        closeConfirmModal(); // Tutup konfirmasi saja agar bisa coba lagi
     } finally {
-        btn.textContent = originalBtnText; btn.disabled = false;
+        // Reset tombol
+        btnSave.innerHTML = originalText;
+        btnSave.disabled = false;
+        btnCancel.disabled = false;
     }
 }
 
@@ -222,4 +251,8 @@ async function submitScoreFinal() {
 if (sessionStorage.getItem('pengawas')) {
     currentUser = sessionStorage.getItem('pengawas');
     showDashboard();
+} else {
+    // Pastikan login section terlihat jika belum login
+    document.getElementById('loginSection').style.display = 'flex';
+    document.getElementById('dashboardSection').style.display = 'none';
 }

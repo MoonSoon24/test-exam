@@ -5,24 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Pengawas</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Menggunakan Font Inter untuk tampilan yang bersih dan modern -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Menambahkan icon dari Remix Icon untuk mempercantik tampilan -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
         <!-- STATE 1: LOGIN -->
         <section id="loginSection">
             <div class="login-card">
-                <h2>Portal Pengawas</h2>
-                <p style="color:#64748b; margin-bottom:20px;">Silakan login untuk memulai penilaian.</p>
-                <div class="form-group">
-                    <label>Username Penguji</label>
-                    <input type="text" id="usernameInput" placeholder="Contoh: Budi Santoso">
+                <div class="login-header">
+                    <i class="ri-shield-user-line login-icon"></i>
+                    <h2>Portal Pengawas</h2>
+                    <p>Silakan login untuk memulai penilaian.</p>
                 </div>
                 <div class="form-group">
-                    <label>Kode Akses</label>
-                    <input type="password" id="passwordInput" placeholder="******">
+                    <label for="usernameInput">Username Penguji</label>
+                    <div class="input-wrapper">
+                        <i class="ri-user-line"></i>
+                        <input type="text" id="usernameInput" placeholder="Contoh: Budi Santoso">
+                    </div>
                 </div>
-                <button onclick="doLogin()" id="loginBtn">Masuk</button>
+                <div class="form-group">
+                    <label for="passwordInput">Kode Akses</label>
+                    <div class="input-wrapper">
+                        <i class="ri-lock-password-line"></i>
+                        <input type="password" id="passwordInput" placeholder="******">
+                    </div>
+                </div>
+                <button onclick="doLogin()" id="loginBtn" class="btn-primary">
+                    <span>Masuk</span> <i class="ri-arrow-right-line"></i>
+                </button>
                 <p id="loginError" class="error-text"></p>
             </div>
         </section>
@@ -31,17 +45,29 @@
         <section id="dashboardSection" style="display: none;">
             <header>
                 <div class="user-info">
-                    Penguji: <strong><span id="pengawasName">...</span></strong>
+                    <i class="ri-user-3-fill"></i>
+                    <div>
+                        <span class="label">Penguji</span>
+                        <strong id="pengawasName">...</strong>
+                    </div>
                 </div>
-                <button onclick="doLogout()" class="logout-btn">Keluar</button>
+                <button onclick="doLogout()" class="logout-btn" title="Keluar">
+                    <i class="ri-logout-box-r-line"></i>
+                </button>
             </header>
             
             <main>
                 <div class="sticky-search">
-                     <input type="text" id="searchInput" placeholder="🔍 Cari Nama atau No Peserta..." onkeyup="filterPeserta()">
+                    <div class="search-wrapper">
+                        <i class="ri-search-line"></i>
+                        <input type="text" id="searchInput" placeholder="Cari Nama atau No Peserta..." onkeyup="filterPeserta()">
+                    </div>
                 </div>
 
-                <div id="loadingData">Sedang memuat data...</div>
+                <div id="loadingData" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Sedang memuat data...</p>
+                </div>
                 <ul id="pesertaList" class="peserta-list">
                     <!-- Item Peserta will go here -->
                 </ul>
@@ -51,46 +77,83 @@
 
     <!-- MODAL 1: INPUT SKOR & CATATAN -->
     <div id="scoreModal" class="modal" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-backdrop" onclick="closeAllModals()"></div>
+        <div class="modal-content slide-up">
             <div class="modal-header">
-                <h3>Penilaian Peserta</h3>
-                <span class="close-btn" onclick="closeAllModals()">&times;</span>
+                <h3><i class="ri-edit-circle-line"></i> Penilaian Peserta</h3>
+                <button class="close-btn-icon" onclick="closeAllModals()"><i class="ri-close-line"></i></button>
             </div>
             <div class="modal-body">
-                <div class="peserta-detail">
-                    <h2 id="detailNama">-</h2>
-                    <p>No: <span id="detailNo">-</span></p>
-                    <p id="detailJurusan">-</p>
+                <div class="peserta-summary-card">
+                    <div class="avatar-placeholder">
+                        <i class="ri-user-smile-line"></i>
+                    </div>
+                    <div class="peserta-summary-text">
+                        <h2 id="detailNama">-</h2>
+                        <p class="peserta-id">No. Peserta: <span id="detailNo">-</span></p>
+                        <div class="detail-pills">
+                            <span class="pill"><i class="ri-book-mark-line"></i> <span id="detailJurusan">-</span></span>
+                            <span class="pill"><i class="ri-building-line"></i> <span id="detailUniversitas">-</span></span>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>Score Wawancara (0-100) *</label>
-                    <input type="number" id="scoreInput" placeholder="Masukkan nilai..." min="0" max="100">
-                </div>
+                <div class="form-section">
+                    <div class="form-group score-group">
+                        <label for="scoreInput">Score Wawancara <span class="required">*</span></label>
+                        <div class="score-input-wrapper">
+                            <input type="number" id="scoreInput" placeholder="0" min="0" max="100">
+                            <span class="score-suffix">/ 100</span>
+                        </div>
+                        <p class="helper-text">Masukkan nilai antara 0 - 100</p>
+                    </div>
 
-                <div class="form-group">
-                    <label>Catatan Tambahan (Opsional)</label>
-                    <textarea id="notesInput" rows="4" placeholder="Tulis catatan mengenai peserta ini..."></textarea>
+                    <div class="form-group">
+                        <label for="notesInput">Catatan Tambahan (Opsional)</label>
+                        <textarea id="notesInput" rows="3" placeholder="Tulis catatan mengenai kelebihan/kekurangan peserta ini..."></textarea>
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
-                <button onclick="closeAllModals()" class="cancel-btn">Batal</button>
-                <button onclick="openConfirmModal()" class="save-btn">Lanjut ke Konfirmasi</button>
+                <button onclick="closeAllModals()" class="btn-secondary">Batal</button>
+                <button onclick="openConfirmModal()" class="btn-primary">Lanjut <i class="ri-arrow-right-line"></i></button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL 2: KONFIRMASI -->
-    <div id="confirmModal" class="modal" style="display: none; z-index: 1001;">
-        <div class="modal-content compact-modal">
-            <h3>Konfirmasi Simpan</h3>
-            <p>Anda yakin ingin menyimpan nilai ini? Data yang sudah disimpan tidak dapat diubah oleh Anda.</p>
-            <div class="summary-review">
-                <p>Nilai: <strong><span id="confirmScore">-</span></strong></p>
+    <!-- MODAL 2: KONFIRMASI (Desain Baru) -->
+    <div id="confirmModal" class="modal confirm-modal-wrap" style="display: none; z-index: 1050;">
+        <div class="modal-backdrop" onclick="closeConfirmModal()"></div>
+        <div class="modal-content zoom-in compact-modal confirm-style">
+            <div class="confirm-icon">
+                <i class="ri-question-mark"></i>
             </div>
-            <div class="modal-actions">
-                <button onclick="closeConfirmModal()" class="cancel-btn">Periksa Lagi</button>
-                <button onclick="submitScoreFinal()" id="finalSubmitBtn" class="save-btn">Ya, Simpan Permanen</button>
+            <h3>Konfirmasi Simpan</h3>
+            <p class="confirm-desc">Apakah Anda yakin data penilaian ini sudah benar? Data yang disimpan <strong>tidak dapat diubah</strong> kembali.</p>
+            
+            <div class="review-box">
+                <div class="review-item">
+                    <span class="review-label">Nama Peserta</span>
+                    <span class="review-value" id="confirmName">-</span>
+                </div>
+                <div class="review-divider"></div>
+                <div class="review-item highlight">
+                    <span class="review-label">Nilai Akhir</span>
+                    <span class="review-value score-value" id="confirmScore">-</span>
+                </div>
+                <div class="review-item notes-review" id="confirmNotesRow" style="display: none;">
+                    <span class="review-label">Catatan</span>
+                    <p class="review-notes" id="confirmNotes">-</p>
+                </div>
+            </div>
+
+            <div class="modal-actions vertical-actions">
+                <button onclick="submitScoreFinal()" id="finalSubmitBtn" class="btn-primary full-width">
+                    <i class="ri-save-3-line"></i> Ya, Simpan Permanen
+                </button>
+                <button onclick="closeConfirmModal()" id="cancelConfirmBtn" class="btn-text full-width">
+                    Periksa Kembali
+                </button>
             </div>
         </div>
     </div>
