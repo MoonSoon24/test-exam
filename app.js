@@ -210,7 +210,7 @@ function openScoreModal(noPeserta) {
     // Ambil data lama jika ada
     const existingScore = currentPeserta['Score'] || currentPeserta['SCORE'] || currentPeserta['NILAI'];
     const existingNotes = currentPeserta['Catatan Tambahan'] || currentPeserta['CATATAN TAMBAHAN'] || currentPeserta['Catatan'] || '';
-    const existingAssessor = currentPeserta['Pewawancara'] || currentPeserta['PEWAWANCARA'] || '';
+    const existingAssessor = currentPeserta['Penguji'] || currentPeserta['Pewawancara'] || '';
 
     // Tentukan status: jika ada nilai, anggap sudah dinilai
     const isDone = (existingScore !== undefined && existingScore !== null && existingScore.toString().trim() !== '');
