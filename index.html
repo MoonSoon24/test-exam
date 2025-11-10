@@ -158,6 +158,54 @@
         </div>
     </div>
 
+    <!-- MODAL 3: LIHAT SKOR (READ-ONLY) -->
+    <div id="viewScoreModal" class="modal" style="display: none; z-index: 1010;">
+        <div class="modal-backdrop" onclick="closeAllModals()"></div>
+        <div class="modal-content slide-up">
+            <div class="modal-header">
+                <h3><i class="ri-check-double-line"></i> Detail Penilaian</h3>
+                <button class="close-btn-icon" onclick="closeAllModals()"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- Info Peserta (sama dengan scoreModal) -->
+                <div class="peserta-summary-card">
+                    <div class="avatar-placeholder">
+                        <i class="ri-user-smile-line"></i>
+                    </div>
+                    <div class="peserta-summary-text">
+                        <h2 id="detailNamaView">-</h2>
+                        <p class="peserta-id">No. Peserta: <span id="detailNoView">-</span></p>
+                        <div class="detail-pills">
+                            <span class="pill"><i class="ri-book-mark-line"></i> <span id="detailJurusanView">-</span></span>
+                            <span class="pill"><i class="ri-building-line"></i> <span id="detailUniversitasView">-</span></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detail Nilai Read-Only -->
+                <div class="review-box" style="margin: 0; padding: 16px;">
+                    <div class="review-item highlight">
+                        <span class="review-label">Nilai Akhir</span>
+                        <span class="review-value score-value" id="viewScore">-</span>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div class="review-item">
+                        <span class="review-label">Dinilai oleh</span>
+                        <span class="review-value" id="viewAssessor">-</span>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div class="review-item notes-review" id="viewNotesRow" style="display: none;">
+                        <span class="review-label">Catatan</span>
+                        <p class="review-notes" id="viewNotes" style="white-space: pre-wrap;">-</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeAllModals()" class="btn-secondary full-width">Tutup</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

@@ -80,8 +80,7 @@ function renderPeserta(list) {
     }
 
     list.forEach(p => {
-        // --- MAPPING DATA SESUAI HEADER BARU ANDA ---
-        // Header: NO PESERTA, NAMA LENGKAP, JURUSAN, UNIVERSITAS, Score, STATUS (opsional)
+        // --- MAPPING DATA ---
         const no = p['NO PESERTA'] || '-';
         const nama = p['NAMA LENGKAP'] || 'Tanpa Nama';
         const jurusan = p['JURUSAN'] || '-';
@@ -125,24 +124,53 @@ function filterPeserta() {
 }
 
 // --- MODAL FLOW ---
+
+// Fungsi baru untuk handle klik peserta
 function openScoreModal(noPeserta) {
     currentPeserta = allPeserta.find(p => String(p['NO PESERTA']) === String(noPeserta));
     if (!currentPeserta) return;
 
-    document.getElementById('detailNama').textContent = currentPeserta['NAMA LENGKAP'];
-    document.getElementById('detailNo').textContent = currentPeserta['NO PESERTA'];
-    document.getElementById('detailJurusan').textContent = currentPeserta['JURUSAN'] || '-';
-    document.getElementById('detailUniversitas').textContent = currentPeserta['UNIVERSITAS'] || '-';
-
-    // Ambil data lama jika ada untuk mode edit
+    // Ambil data lama jika ada
     const existingScore = currentPeserta['Score'] || currentPeserta['SCORE'] || currentPeserta['NILAI'];
-    // Coba berbagai kemungkinan nama kolom catatan
     const existingNotes = currentPeserta['Catatan Tambahan'] || currentPeserta['CATATAN TAMBAHAN'] || currentPeserta['Catatan'] || '';
+    const existingAssessor = currentPeserta['Pewawancara'] || currentPeserta['PEWAWANCARA'] || '';
 
-    document.getElementById('scoreInput').value = existingScore || '';
-    document.getElementById('notesInput').value = existingNotes || '';
-    
-    document.getElementById('scoreModal').style.display = 'flex';
+    // Tentukan status: jika ada nilai, anggap sudah dinilai
+    const isDone = (existingScore !== undefined && existingScore !== null && existingScore.toString().trim() !== '');
+
+    if (isDone) {
+        // --- MODE READ-ONLY (Lihat Nilai) ---
+        document.getElementById('detailNamaView').textContent = currentPeserta['NAMA LENGKAP'];
+        document.getElementById('detailNoView').textContent = currentPeserta['NO PESERTA'];
+        document.getElementById('detailJurusanView').textContent = currentPeserta['JURUSAN'] || '-';
+        document.getElementById('detailUniversitasView').textContent = currentPeserta['UNIVERSITAS'] || '-';
+
+        document.getElementById('viewScore').textContent = existingScore;
+        document.getElementById('viewAssessor').textContent = existingAssessor || '(Tidak ada data penilai)';
+
+        const notesRow = document.getElementById('viewNotesRow');
+        if (existingNotes && existingNotes.trim().length > 0) {
+            document.getElementById('viewNotes').textContent = existingNotes;
+            notesRow.style.display = 'flex';
+        } else {
+            document.getElementById('viewNotes').textContent = '(Tidak ada catatan)';
+            notesRow.style.display = 'flex';
+        }
+        
+        document.getElementById('viewScoreModal').style.display = 'flex';
+
+    } else {
+        // --- MODE INPUT (Belum Dinilai) ---
+        document.getElementById('detailNama').textContent = currentPeserta['NAMA LENGKAP'];
+        document.getElementById('detailNo').textContent = currentPeserta['NO PESERTA'];
+        document.getElementById('detailJurusan').textContent = currentPeserta['JURUSAN'] || '-';
+        document.getElementById('detailUniversitas').textContent = currentPeserta['UNIVERSITAS'] || '-';
+
+        document.getElementById('scoreInput').value = '';
+        document.getElementById('notesInput').value = '';
+        
+        document.getElementById('scoreModal').style.display = 'flex';
+    }
 }
 
 function openConfirmModal() {
@@ -177,6 +205,7 @@ function openConfirmModal() {
 function closeAllModals() {
     document.getElementById('scoreModal').style.display = 'none';
     document.getElementById('confirmModal').style.display = 'none';
+    document.getElementById('viewScoreModal').style.display = 'none'; // Tutup juga modal view
 }
 
 function closeConfirmModal() {
@@ -205,12 +234,14 @@ async function submitScoreFinal() {
         const data = await res.json();
 
         if (data.success) {
-            // Update data lokal untuk refleksi instan di UI
-            // Gunakan nama kolom yang sama dengan yang dipakai di renderPeserta
+            // Update data lokal agar UI langsung berubah tanpa refresh
             currentPeserta['Score'] = score; 
-            currentPeserta['SCORE'] = score; // Jaga-jaga
+            currentPeserta['SCORE'] = score;
             currentPeserta['Catatan Tambahan'] = notes;
-            currentPeserta['STATUS'] = 'Sudah Dinilai'; // Optional untuk lokal flag
+            currentPeserta['CATATAN TAMBAHAN'] = notes;
+            // Simpan nama pewawancara juga agar muncul saat dilihat kembali
+            currentPeserta['Pewawancara'] = currentUser;
+            currentPeserta['PEWAWANCARA'] = currentUser;
 
             closeAllModals();
             renderPeserta(allPeserta);

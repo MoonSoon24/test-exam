@@ -84,6 +84,7 @@ main { padding: 24px; }
 .status-badge { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px; }
 .status-belum { background: var(--bg-main); color: var(--text-secondary); }
 .status-sudah { background: #dcfce7; color: #15803d; }
+.arrow-icon { font-size: 1.5rem; color: var(--text-tertiary); }
 
 /* --- MODALS --- */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: flex-end; z-index: 1000; visibility: hidden; transition: visibility 0.3s; }
@@ -126,7 +127,7 @@ main { padding: 24px; }
 
 /* --- CONFIRMATION MODAL SPECIFIC --- */
 .confirm-modal-wrap .modal-content.compact-modal { max-width: 400px; }
-.confirm-style { text-align: center; padding-top: 40px; }
+.confirm-style { text-align: center; padding-top: 60px; } /* Increased padding to prevent icon cut-off */
 .confirm-icon { width: 80px; height: 80px; background: #fef3c7; color: #d97706; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin: -60px auto 20px; border: 6px solid var(--bg-card); position: relative; }
 .confirm-desc { color: var(--text-secondary); margin-bottom: 24px; padding: 0 20px; }
 
@@ -137,7 +138,7 @@ main { padding: 24px; }
 .review-value { font-weight: 600; color: var(--text-primary); text-align: right; }
 .score-value { font-size: 1.5rem; color: var(--primary); }
 .review-divider { height: 1px; background: var(--border-color); margin: 12px 0; }
-.review-notes { margin: 4px 0 0 0; font-size: 0.9rem; color: var(--text-primary); background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); }
+.review-notes { margin: 4px 0 0 0; font-size: 0.9rem; color: var(--text-primary); background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); word-wrap: break-word; white-space: pre-wrap; }
 .notes-review { flex-direction: column; align-items: flex-start; }
 
 .vertical-actions { flex-direction: column; padding: 0 24px 24px; border: none; }
