@@ -2,8 +2,7 @@ const API_URL = "/api/proxy";
 
 let currentUser = null;
 let allPeserta = [];
-let selectedPesertaId = null;
-let selectedPesertaName = null;
+let currentPeserta = null; // Menyimpan objek peserta yang sedang dipilih
 
 // --- AUTH ---
 async function doLogin() {
@@ -14,7 +13,7 @@ async function doLogin() {
 
     if (!user || !pass) { err.textContent = 'Isi semua kolom!'; return; }
 
-    btn.textContent = 'Loading...'; btn.disabled = true; err.textContent = '';
+    btn.textContent = 'Memverifikasi...'; btn.disabled = true; err.textContent = '';
 
     try {
         const res = await fetch(`${API_URL}?action=login&username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`);
@@ -25,18 +24,20 @@ async function doLogin() {
             sessionStorage.setItem('pengawas', currentUser);
             showDashboard();
         } else {
-            err.textContent = data.error || 'Login gagal';
+            err.textContent = data.error || 'Login gagal, periksa username/password.';
         }
     } catch (e) {
-        err.textContent = 'Gagal terhubung ke server.';
+        err.textContent = 'Gagal terhubung ke server. Periksa internet Anda.';
     } finally {
         btn.textContent = 'Masuk'; btn.disabled = false;
     }
 }
 
 function doLogout() {
-    sessionStorage.removeItem('pengawas');
-    window.location.reload();
+    if (confirm('Anda yakin ingin keluar?')) {
+        sessionStorage.removeItem('pengawas');
+        window.location.reload();
+    }
 }
 
 // --- DASHBOARD ---
@@ -50,6 +51,7 @@ function showDashboard() {
 async function loadPeserta() {
     const loadingEl = document.getElementById('loadingData');
     loadingEl.style.display = 'block';
+    document.getElementById('pesertaList').innerHTML = '';
     
     try {
         const res = await fetch(`${API_URL}?action=getExaminees`);
@@ -59,10 +61,10 @@ async function loadPeserta() {
             allPeserta = data.data;
             renderPeserta(allPeserta);
         } else {
-            alert('Gagal memuat data: ' + data.error);
+            alert('Gagal memuat data: ' + (data.error || 'Unknown error'));
         }
     } catch (e) {
-        alert('Error koneksi saat memuat data.');
+        document.getElementById('pesertaList').innerHTML = '<p style="text-align:center; color:red; margin-top:20px;">Gagal memuat data. Coba refresh halaman.</p>';
     } finally {
         loadingEl.style.display = 'none';
     }
@@ -72,35 +74,38 @@ function renderPeserta(list) {
     const listEl = document.getElementById('pesertaList');
     listEl.innerHTML = '';
 
-    if (list.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#666;">Tidak ada data.</p>';
+    if (!list || list.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; margin-top:40px;">Tidak ada data peserta.</p>';
         return;
     }
 
     list.forEach(p => {
-        // KUNCI PERUBAHAN DI SINI: Menggunakan nama kolom baru Anda
-        // Pastikan key ini SAMA PERSIS dengan Header di Google Sheet (huruf besar/kecil, spasi)
+        // Mapping data sesuai header baru
         const no = p['NO PESERTA'] || '-';
         const nama = p['NAMA LENGKAP'] || 'Tanpa Nama';
         const jurusan = p['JURUSAN'] || '-';
-        const universitas = p['UNIVERSITAS'] || '-';
-        const status = p['STATUS']; // Kolom H yang kita tambahkan
-        const nilai = p['NILAI'];   // Kolom I yang kita tambahkan
+        const status = p['STATUS'];
+        // Cek 'SCORE' dulu, kalau kosong coba cek 'NILAI' (untuk backward compatibility)
+        const score = p['SCORE'] || p['NILAI']; 
         
         const isDone = status === 'Sudah Dinilai';
 
         const li = document.createElement('li');
         li.className = 'peserta-item';
+        // Saat baris diklik, buka modal detail
+        li.onclick = () => openScoreModal(no);
+
         li.innerHTML = `
             <div class="peserta-info">
-                <h4>${nama} <span style="font-weight:normal; font-size:0.9em; color:#666;">(#${no})</span></h4>
-                <p>${jurusan} - ${universitas}</p>
+                <h4>${nama}</h4>
+                <p>#${no} • ${jurusan}</p>
             </div>
-            <div>
+            <div style="display:flex; align-items:center; gap:10px;">
                 ${isDone 
-                    ? `<span class="status-badge status-sudah">Nilai: ${nilai}</span>` 
-                    : `<button onclick="openModal('${no}', '${nama.replace(/'/g, "\\'")}')" style="cursor:pointer; background:#2563eb; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:600;">Input Nilai</button>`
+                    ? `<span class="status-badge status-sudah">Score: ${score}</span>` 
+                    : `<span class="status-badge status-belum">Belum Dinilai</span>`
                 }
+                <span class="arrow-icon">&rsaquo;</span>
             </div>
         `;
         listEl.appendChild(li);
@@ -110,7 +115,6 @@ function renderPeserta(list) {
 function filterPeserta() {
     const q = document.getElementById('searchInput').value.toLowerCase();
     const filtered = allPeserta.filter(p => {
-        // Filter berdasarkan NAMA LENGKAP atau NO PESERTA
         const namaStr = String(p['NAMA LENGKAP'] || '').toLowerCase();
         const noStr = String(p['NO PESERTA'] || '').toLowerCase();
         return namaStr.includes(q) || noStr.includes(q);
@@ -118,60 +122,103 @@ function filterPeserta() {
     renderPeserta(filtered);
 }
 
-// --- MODAL & SUBMIT ---
-function openModal(id, name) {
-    selectedPesertaId = id; // Ini sekarang adalah 'NO PESERTA' (contoh: 720)
-    selectedPesertaName = name;
-    document.getElementById('modalPesertaName').textContent = name;
+// --- MODAL FLOW ---
+
+// 1. Buka Modal Input Skor
+function openScoreModal(noPeserta) {
+    currentPeserta = allPeserta.find(p => String(p['NO PESERTA']) === String(noPeserta));
+    if (!currentPeserta) return;
+
+    // Isi detail peserta di modal
+    document.getElementById('detailNama').textContent = currentPeserta['NAMA LENGKAP'];
+    document.getElementById('detailNo').textContent = currentPeserta['NO PESERTA'];
+    document.getElementById('detailJurusan').textContent = `${currentPeserta['JURUSAN']} - ${currentPeserta['UNIVERSITAS']}`;
+
+    // Reset form input
+    const existingScore = currentPeserta['SCORE'] || currentPeserta['NILAI'];
+    const existingNotes = currentPeserta['CATATAN TAMBAHAN'];
+
+    document.getElementById('scoreInput').value = existingScore || '';
+    document.getElementById('notesInput').value = existingNotes || '';
+    
+    // Tampilkan modal
     document.getElementById('scoreModal').style.display = 'flex';
 }
 
-function closeModal() {
-    document.getElementById('scoreModal').style.display = 'none';
-    document.getElementById('scoreInput').value = '';
+// 2. Buka Modal Konfirmasi
+function openConfirmModal() {
+    const score = document.getElementById('scoreInput').value;
+    if (!score) {
+        alert("Mohon isi nilai terlebih dahulu.");
+        return;
+    }
+    if (score < 0 || score > 100) {
+        alert("Nilai harus antara 0 - 100.");
+        return;
+    }
+
+    // Tampilkan ringkasan di modal konfirmasi
+    document.getElementById('confirmScore').textContent = score;
+    document.getElementById('confirmModal').style.display = 'flex';
 }
 
-async function submitScore() {
-    const score = document.getElementById('scoreInput').value;
-    if (!score) return alert("Masukkan nilai terlebih dahulu!");
+// 3. Tutup Modal
+function closeAllModals() {
+    document.getElementById('scoreModal').style.display = 'none';
+    document.getElementById('confirmModal').style.display = 'none';
+}
 
-    const btn = document.querySelector('.save-btn');
-    const originalText = btn.textContent;
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+// 4. Submit Final ke Server
+async function submitScoreFinal() {
+    if (!currentPeserta) return;
+
+    const score = document.getElementById('scoreInput').value;
+    const notes = document.getElementById('notesInput').value;
+    const btn = document.getElementById('finalSubmitBtn');
+    
+    const originalBtnText = btn.textContent;
     btn.textContent = 'Menyimpan...'; btn.disabled = true;
 
     try {
-        // Kita kirim 'id' yang isinya adalah NO PESERTA
-        const url = `${API_URL}?action=submitScore&id=${encodeURIComponent(selectedPesertaId)}&nilai=${score}&pewawancara=${encodeURIComponent(currentUser)}`;
+        // Kirim data lengkap ke proxy -> GAS
+        const url = `${API_URL}?action=submitScore` +
+                    `&id=${encodeURIComponent(currentPeserta['NO PESERTA'])}` +
+                    `&nilai=${encodeURIComponent(score)}` +
+                    `&catatan=${encodeURIComponent(notes)}` +
+                    `&pewawancara=${encodeURIComponent(currentUser)}`;
         
         const res = await fetch(url);
         const data = await res.json();
 
         if (data.success) {
-            closeModal();
-            // Update data lokal agar tidak perlu reload seluruh halaman dari server
-            updateLocalData(selectedPesertaId, score);
+            // Update data lokal instan
+            currentPeserta['STATUS'] = 'Sudah Dinilai';
+            currentPeserta['SCORE'] = score; // Update nilai lokal
+            currentPeserta['CATATAN TAMBAHAN'] = notes;
+
+            closeAllModals();
+            renderPeserta(allPeserta); // Refresh list UI
+            filterPeserta(); // Re-apply filter jika ada
+
+            // Opsional: Tampilkan notifikasi sukses kecil (toast)
+            // alert('Data berhasil disimpan!'); 
         } else {
             alert('Gagal menyimpan: ' + data.error);
+            closeConfirmModal(); // Tutup konfirmasi saja agar bisa edit lagi
         }
     } catch (e) {
-        alert('Gagal terhubung ke server.');
+        alert('Error koneksi saat menyimpan. Coba lagi.');
+        closeConfirmModal();
     } finally {
-        btn.textContent = originalText; btn.disabled = false;
+        btn.textContent = originalBtnText; btn.disabled = false;
     }
 }
 
-// Helper untuk update tampilan instan setelah submit
-function updateLocalData(noPeserta, nilaiBaru) {
-    const target = allPeserta.find(p => String(p['NO PESERTA']) === String(noPeserta));
-    if (target) {
-        target['STATUS'] = 'Sudah Dinilai';
-        target['NILAI'] = nilaiBaru;
-        renderPeserta(allPeserta); // Render ulang list dengan data baru
-        filterPeserta(); // Terapkan filter pencarian jika sedang aktif
-    }
-}
-
-// Cek sesi saat halaman dimuat
+// Cek sesi saat load
 if (sessionStorage.getItem('pengawas')) {
     currentUser = sessionStorage.getItem('pengawas');
     showDashboard();
