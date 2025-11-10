@@ -5,6 +5,7 @@ const API_URL = "/api/proxy";
 let currentUser = null;
 let allPeserta = [];
 let currentPeserta = null;
+let currentSort = 'no_asc'; // Default sort: Nomor Peserta Naik
 
 // --- AUTH (Tidak Berubah) ---
 async function doLogin() {
@@ -52,6 +53,7 @@ async function loadPeserta() {
     const loadingEl = document.getElementById('loadingData');
     loadingEl.style.display = 'block';
     document.getElementById('pesertaList').innerHTML = '';
+    document.getElementById('emptyState').style.display = 'none';
     
     try {
         const res = await fetch(`${API_URL}?action=getExaminees`);
@@ -59,7 +61,8 @@ async function loadPeserta() {
 
         if (data.success) {
             allPeserta = data.data;
-            renderPeserta(allPeserta);
+            // Terapkan sorting default saat data pertama kali dimuat
+            applySort(currentSort);
         } else {
             alert('Gagal memuat data: ' + (data.error || 'Unknown error'));
         }
@@ -72,12 +75,14 @@ async function loadPeserta() {
 
 function renderPeserta(list) {
     const listEl = document.getElementById('pesertaList');
+    const emptyEl = document.getElementById('emptyState');
     listEl.innerHTML = '';
 
     if (!list || list.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:#94a3b8; margin-top:40px;">Tidak ada data peserta.</p>';
+        emptyEl.style.display = 'flex';
         return;
     }
+    emptyEl.style.display = 'none';
 
     list.forEach(p => {
         // --- MAPPING DATA ---
@@ -115,17 +120,89 @@ function renderPeserta(list) {
 
 function filterPeserta() {
     const q = document.getElementById('searchInput').value.toLowerCase();
-    const filtered = allPeserta.filter(p => {
+    let filtered = allPeserta.filter(p => {
         const namaStr = String(p['NAMA LENGKAP'] || '').toLowerCase();
         const noStr = String(p['NO PESERTA'] || '').toLowerCase();
         return namaStr.includes(q) || noStr.includes(q);
     });
+    
+    // Terapkan sorting pada hasil filter juga
+    filtered = sortData(filtered, currentSort);
     renderPeserta(filtered);
 }
 
-// --- MODAL FLOW ---
+// --- FITUR SORTING BARU ---
+function toggleSortMenu() {
+    const menu = document.getElementById('sortMenu');
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
 
-// Fungsi baru untuk handle klik peserta
+    // Tutup menu jika klik di luar
+    if (menu.style.display === 'block') {
+        document.addEventListener('click', closeSortMenuOnClickOutside);
+    }
+}
+
+function closeSortMenuOnClickOutside(event) {
+    const menu = document.getElementById('sortMenu');
+    const btn = document.getElementById('sortBtn');
+    if (!menu.contains(event.target) && !btn.contains(event.target)) {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeSortMenuOnClickOutside);
+    }
+}
+
+function setSort(sortType, element) {
+    currentSort = sortType;
+    
+    // Update UI selected state
+    document.querySelectorAll('.sort-option').forEach(opt => {
+        opt.classList.remove('selected');
+        // Hapus icon check lama jika ada
+        const icon = opt.querySelector('i');
+        if (icon) icon.remove();
+    });
+    element.classList.add('selected');
+    // Tambah icon check baru
+    element.innerHTML += ' <i class="ri-check-line"></i>';
+
+    document.getElementById('sortMenu').style.display = 'none';
+    
+    // Terapkan sorting dan render ulang (termasuk filter jika sedang aktif)
+    filterPeserta();
+}
+
+function applySort(sortType) {
+    // Helper untuk memanggil filterPeserta yang sudah include sorting
+    filterPeserta();
+}
+
+function sortData(data, sortType) {
+    return [...data].sort((a, b) => {
+        let valA, valB;
+        switch (sortType) {
+            case 'no_asc':
+                return String(a['NO PESERTA'] || '').localeCompare(String(b['NO PESERTA'] || ''), undefined, {numeric: true});
+            case 'no_desc':
+                return String(b['NO PESERTA'] || '').localeCompare(String(a['NO PESERTA'] || ''), undefined, {numeric: true});
+            case 'nama_asc':
+                return String(a['NAMA LENGKAP'] || '').localeCompare(String(b['NAMA LENGKAP'] || ''));
+            case 'nama_desc':
+                return String(b['NAMA LENGKAP'] || '').localeCompare(String(a['NAMA LENGKAP'] || ''));
+            case 'score_desc': // Nilai Tertinggi
+                valA = parseFloat(a['Score'] || a['SCORE'] || a['NILAI']) || -1;
+                valB = parseFloat(b['Score'] || b['SCORE'] || b['NILAI']) || -1;
+                return valB - valA;
+            case 'score_asc': // Nilai Terendah
+                valA = parseFloat(a['Score'] || a['SCORE'] || a['NILAI']) || 9999;
+                valB = parseFloat(b['Score'] || b['SCORE'] || b['NILAI']) || 9999;
+                return valA - valB;
+            default:
+                return 0;
+        }
+    });
+}
+
+// --- MODAL FLOW ---
 function openScoreModal(noPeserta) {
     currentPeserta = allPeserta.find(p => String(p['NO PESERTA']) === String(noPeserta));
     if (!currentPeserta) return;
@@ -133,7 +210,7 @@ function openScoreModal(noPeserta) {
     // Ambil data lama jika ada
     const existingScore = currentPeserta['Score'] || currentPeserta['SCORE'] || currentPeserta['NILAI'];
     const existingNotes = currentPeserta['Catatan Tambahan'] || currentPeserta['CATATAN TAMBAHAN'] || currentPeserta['Catatan'] || '';
-    const existingAssessor = currentPeserta['Penilai'] || currentPeserta['Pewawancara'] || '';
+    const existingAssessor = currentPeserta['Pewawancara'] || currentPeserta['PEWAWANCARA'] || '';
 
     // Tentukan status: jika ada nilai, anggap sudah dinilai
     const isDone = (existingScore !== undefined && existingScore !== null && existingScore.toString().trim() !== '');
@@ -205,7 +282,7 @@ function openConfirmModal() {
 function closeAllModals() {
     document.getElementById('scoreModal').style.display = 'none';
     document.getElementById('confirmModal').style.display = 'none';
-    document.getElementById('viewScoreModal').style.display = 'none'; // Tutup juga modal view
+    document.getElementById('viewScoreModal').style.display = 'none';
 }
 
 function closeConfirmModal() {
@@ -239,12 +316,11 @@ async function submitScoreFinal() {
             currentPeserta['SCORE'] = score;
             currentPeserta['Catatan Tambahan'] = notes;
             currentPeserta['CATATAN TAMBAHAN'] = notes;
-            // Simpan nama pewawancara juga agar muncul saat dilihat kembali
             currentPeserta['Pewawancara'] = currentUser;
             currentPeserta['PEWAWANCARA'] = currentUser;
 
             closeAllModals();
-            renderPeserta(allPeserta);
+            // Render ulang dengan tetap mempertahankan filter & sorting saat ini
             filterPeserta();
         } else {
             throw new Error(data.error || 'Gagal menyimpan.');

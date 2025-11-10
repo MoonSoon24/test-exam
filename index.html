@@ -57,10 +57,42 @@
             </header>
             
             <main>
+                <!-- Area Pencarian dan Sorting -->
                 <div class="sticky-search">
-                    <div class="search-wrapper">
-                        <i class="ri-search-line"></i>
-                        <input type="text" id="searchInput" placeholder="Cari Nama atau No Peserta..." onkeyup="filterPeserta()">
+                    <div class="search-and-sort">
+                        <div class="search-wrapper">
+                            <i class="ri-search-line"></i>
+                            <input type="text" id="searchInput" placeholder="Cari Nama atau No..." onkeyup="filterPeserta()">
+                        </div>
+                        <!-- Tombol Sorting Baru -->
+                        <div class="sort-wrapper">
+                            <button id="sortBtn" class="btn-icon" onclick="toggleSortMenu()">
+                                <i class="ri-sort-desc"></i>
+                            </button>
+                            <!-- Dropdown Menu Sorting -->
+                            <div id="sortMenu" class="sort-menu" style="display: none;">
+                                <div class="sort-option selected" onclick="setSort('no_asc', this)">
+                                    No. Peserta (Naik) <i class="ri-check-line"></i>
+                                </div>
+                                <div class="sort-option" onclick="setSort('no_desc', this)">
+                                    No. Peserta (Turun)
+                                </div>
+                                <div class="sort-divider"></div>
+                                <div class="sort-option" onclick="setSort('nama_asc', this)">
+                                    Nama (A-Z)
+                                </div>
+                                <div class="sort-option" onclick="setSort('nama_desc', this)">
+                                    Nama (Z-A)
+                                </div>
+                                <div class="sort-divider"></div>
+                                <div class="sort-option" onclick="setSort('score_desc', this)">
+                                    Nilai Tertinggi
+                                </div>
+                                <div class="sort-option" onclick="setSort('score_asc', this)">
+                                    Nilai Terendah
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -68,6 +100,13 @@
                     <div class="spinner"></div>
                     <p>Sedang memuat data...</p>
                 </div>
+                
+                <!-- Pesan jika tidak ada hasil pencarian -->
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <i class="ri-user-search-line"></i>
+                    <p>Tidak ada peserta ditemukan</p>
+                </div>
+
                 <ul id="pesertaList" class="peserta-list">
                     <!-- Item Peserta will go here -->
                 </ul>
